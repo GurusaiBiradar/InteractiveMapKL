@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kaiserslautern Population Map</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    /* Main container: Map on the left and info on the right */
+    .container {
+      display: flex;
+      justify-content: space-between;
+      max-width: 100%;
+      margin: 20px;
+    }
+
+    /* Styling for the map */
+    #map {
+      height: 600px;
+      flex: 1; 
+      border: 2px solid #ddd;
+      border-radius: 8px;
+    }
+
+    /* the information box */
+    #info {
+      width: 300px;
+      padding: 20px;
+      background-color: #f8f9fa;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+      height: 600px; /* Ensure the info box and map have the same height */
+    }
+
+    /* Header and paragraph  */
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+
+    h2 {
+      text-align: center;
+      color: #333;
+    }
+
+    h3 {
+      color: #007bff;
+      border-bottom: 2px solid #007bff;
+      padding-bottom: 10px;
+    }
+
+    #district-info {
+      font-size: 16px;
+      line-height: 1.5;
+      color: #555;
+    }
+
+  
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f0f2f5;
+    }
+  </style>
+</head>
+<body>
+  <h1>Kaiserslautern</h1>
+  <h2> Districts and Population</h2>
+  <div class="container">
+    <!-- Map section -->
+    <div id="map"></div>
+
+    <!-- Information section -->
+    <div id="info">
+      <h3>District Population Information</h3>
+      <p id="district-info">Click on a district to view its population data...</p>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  
+  <script>
+    //center map on Kaiserslautern
+    var map = L.map('map').setView([49.4431, 7.7696], 12);
+
+    // Adding OpenStreetMap tiles as the base layer
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 18,
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    var geojsonLayer; // To keep track of the GeoJSON layer for resetting styles later
+    var lastClickedLayer; // To track the last clicked district and reset its style
+
+    // Function to set the default style of the districts
+    function style(feature) {
+      return {
+        fillColor: '#3388FF', // Default color for districts
+        weight: 2,
+        opacity: 1,
+        color: 'white',
+        dashArray: '3',
+        fillOpacity: 0.7
+      };
+    }
+
+    // Function to highlight the selected district
+    function highlightFeature(e) {
+      var layer = e.target;
+
+      // Reset the style of the previously clicked district
+      if (lastClickedLayer) {
+        geojsonLayer.resetStyle(lastClickedLayer);
+      }
+
+      // Apply the highlight style to the clicked district
+      layer.setStyle({
+        weight: 5,
+        color: '#666',
+        dashArray: '',
+        fillOpacity: 0.7,
+        fillColor: '#FF5733' 
+      });
+
+      lastClickedLayer = layer; // Keep track of the currently clicked district
+    }
+
+    // Event handling to display population info and highlight district
+    function onEachFeature(feature, layer) {
+      layer.on('click', function (e) {
+        var district = feature.properties.ortsbezirk_1 || "Unknown District";
+        var population = feature.properties.ew_gesamt || "No population data";
+        var malePopulation = feature.properties.m_gesamt || "No data";
+        var femalePopulation = feature.properties.w_gesamt || "No data";
+        var foreignPopulation = feature.properties.davon_auslaender_gesamt || "No data";
+
+        // Display district info 
+        document.getElementById('district-info').innerHTML = 
+          `<strong>District:</strong> ${district}<br>
+           <strong>Total Population:  </strong> ${  population}<br>
+           <strong>Male Population:   </strong> ${malePopulation}<br>
+           <strong>Female Population: </strong> ${femalePopulation}<br>
+           <strong>Foreign Population:</strong> ${foreignPopulation}`;
+
+        // Highlight the clicked district
+        highlightFeature(e);
+      });
+    }
+
+    // Fetch and load the GeoJSON data
+    fetch('/Ortsbezirke_mit_Bevölkerungsdaten.geojson')
+      .then(response => response.json())
+      .then(data => {
+        geojsonLayer = L.geoJSON(data, {
+          style: style,
+          onEachFeature: onEachFeature
+        }).addTo(map);
+      })
+      .catch(error => {
+        console.error("Error loading the GeoJSON file:", error);
+      });
+  </script>
+</body>
+</html>
